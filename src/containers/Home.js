@@ -2,21 +2,19 @@ import React, { useState, useEffect } from "react";
 import { API } from "aws-amplify";
 import { Link } from "react-router-dom";
 import { BsPencilSquare } from "react-icons/bs";
-import { Button, Form, FormControl, InputGroup, ListGroup } from "react-bootstrap";
+import { ListGroup } from "react-bootstrap";
 import { LinkContainer } from "react-router-bootstrap";
 import { useAppContext } from "../libs/contextLib";
-import { useFormFields } from "../libs/hooksLib";
 import { onError } from "../libs/errorLib";
-import LoaderButton from "../components/LoaderButton"
 import "./Home.css";
+import SearchReplace from "../components/SearchReplace";
+import { useFormFields } from "../libs/hooksLib";
 
 export default function Home() {
   const [notes, setNotes] = useState([]);
-  const [search, setSearch] = useState('');
-  const [replace, setReplace] = useState('');
   const { isAuthenticated } = useAppContext();
   const [isLoading, setIsLoading] = useState(true);
-  const [fields, handleFieldChange] = useFormFields({
+  const [{ search, replace }, handleFieldChange, clearField, initializeFields] = useFormFields({
     search: "",
     replace: "",
   });
@@ -58,25 +56,15 @@ export default function Home() {
     return API.get("notes", "/notes");
   }
 
-  async function replaceNotes() {
-    if (!search) return
+  async function replaceNotes(fields) {
     setIsLoading(true)
     notes.map(async (note) => {
       await API.put("notes", `/notes/${note.noteId}`, {
-        body: {...note, content: note.content.replaceAll(search, replace)}
+        body: {...note, content: note.content.replaceAll(fields.search, fields.replace)}
       }).then(() => {
-        setSearch('')
-        setReplace('')
+        initializeFields()
       })
     })
-  }
-
-  function handleInputChange(event) {
-    const { name, value } = event.target
-    console.log(value, name)
-    name === 'search'
-      ? setSearch(value)
-      : setReplace(value)
   }
 
   function renderNotesList(notes) {
@@ -127,57 +115,13 @@ export default function Home() {
       <div className="notes">
         <div className="pb-3 mt-4 mb-3 border-bottom">
           <h2 className="d-inline mr-4">Your Notes</h2>
-          <Form inline className="float-right" >
-            <InputGroup className="mr-2">
-              <FormControl
-                disabled={isLoading}
-                size="sm"
-                onChange={handleInputChange}
-                name="search"
-                type="text"
-                placeholder="Search Notes"
-                value={search}
-              />
-                <InputGroup.Append>
-                  <Button
-                    size="sm"
-                    disabled={!search}
-                    onClick={() => setSearch('')}
-                    variant="secondary"
-                  >
-                    X
-                  </Button>
-                </InputGroup.Append>
-            </InputGroup>
-            <InputGroup className="mr-2">
-              <FormControl
-                disabled={isLoading}
-                size="sm"
-                onChange={handleInputChange}
-                name="replace"
-                type="text"
-                placeholder="Replace Text"
-                value={replace}
-              />
-                <InputGroup.Append>
-                  <Button
-                    size="sm"
-                    disabled={!replace}
-                    onClick={() => setReplace('')}
-                    variant="secondary"
-                  >
-                    X
-                  </Button>
-                </InputGroup.Append>
-            </InputGroup>
-            <LoaderButton
-              disabled={!search || !replace}
-              onClick={replaceNotes}
-              isLoading={isLoading}
-            >
-              Replace
-            </LoaderButton>
-          </Form>
+           <SearchReplace
+            isLoading={isLoading}
+            onSubmit={replaceNotes}
+            fields={{ search, replace }}
+            handleFieldChange={handleFieldChange}
+            clearField={clearField}
+          />
         </div>
         <ListGroup>{!isLoading && renderNotesList(notes)}</ListGroup>
       </div>
